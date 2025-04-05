@@ -50,3 +50,7 @@ def construct_response(request):
     return '\r\n'.join((response['status_line'], 
                         '\r\n'.join([f'{header}: {response['headers'][header]}' for header in response['headers']]) + '\r\n', 
                         response['response_body'])).encode('utf-8')
+
+def handle_request(connection):
+    connection.sendall(construct_response(parse_request(connection.recv(1024))))
+    connection.close()
