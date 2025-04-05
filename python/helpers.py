@@ -38,12 +38,12 @@ def construct_response(request):
         try:
             response['response_body'] = {'': '',
                                         'echo': request['path'].split('/')[2],
-                                        'user-agent': request['headers']['user-agent'],
+                                        'user-agent': request['headers'].get('user-agent') or '',
                                         'request-body': request['request_body']}.get(path_start)
             response['headers']['Content-Length'] = len(response['response_body'])
         except IndexError:
             response['response_body'] = {'': '',
-                                        'user-agent': request['headers']['user-agent'],
+                                        'user-agent': request['headers'].get('user-agent') or '',
                                         'request-body': request['request_body']}.get(path_start)
             response['headers']['Content-Length'] = len(response['response_body'])
             
