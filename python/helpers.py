@@ -1,5 +1,7 @@
 from constants import ALLOWED_METHODS
 from constants import ALLOWED_PATHS
+import os
+from exceptions import HttpNotFoundError
 
 def parse_request(request):
     parsed_request = {'method': '', 'path': '', 'headers': {}, 'http_version': '', 'request_body': ''}
@@ -33,24 +35,40 @@ def construct_response(request):
     elif path_start not in ALLOWED_PATHS:
         response['status_line'] = 'HTTP/1.1 404 Not Found'
     else:
-        response['status_line'] = 'HTTP/1.1 200 OK'
-        response['headers']['Content-Type'] = 'text/plain' if not request['headers'].get('content-type') else request['headers'].get('content-type')
         try:
-            response['response_body'] = {'': '',
-                                        'echo': request['path'].split('/')[2],
-                                        'user-agent': request['headers'].get('user-agent') or '',
-                                        'request-body': request['request_body']}.get(path_start)
+            response['status_line'] = 'HTTP/1.1 200 OK'
+            response['headers']['Content-Type'] = 'text/plain' if not request['headers'].get('content-type') else request['headers'].get('content-type')
+            response['response_body'] = {'': lambda request, response : '',
+                                        'echo': lambda request, response: request['path'].split('/')[2],
+                                        'user-agent': lambda request, response: request['headers'].get('user-agent') or '',
+                                        'request-body': lambda request, response: request['request_body'],
+                                        'files': return_or_create_file}.get(path_start)(request, response)
             response['headers']['Content-Length'] = len(response['response_body'])
-        except IndexError:
-            response['response_body'] = {'': '',
-                                        'user-agent': request['headers'].get('user-agent') or '',
-                                        'request-body': request['request_body']}.get(path_start)
-            response['headers']['Content-Length'] = len(response['response_body'])
+        except HttpNotFoundError:
+            response = {'status_line': 'HTTP/1.1 404 Not Found', 'headers': {}, 'response_body': ''}
             
     return '\r\n'.join((response['status_line'], 
                         '\r\n'.join([f'{header}: {response['headers'][header]}' for header in response['headers']]) + '\r\n', 
                         response['response_body'])).encode('utf-8')
 
+
+
 def handle_request(connection):
     connection.sendall(construct_response(parse_request(connection.recv(1024))))
     connection.close()
+
+
+def return_or_create_file(request, response):
+    if request['method'] == 'GET':
+        try:
+            with open(os.path.join('/tmp', request['path'].split('/')[2]), 'r') as f:
+                response_body = f.read()
+                response['headers']['Content-Type'] = 'application/octet-stream'
+                return response_body
+        except FileNotFoundError:
+            raise HttpNotFoundError
+    elif request['method'] == 'POST':
+        with open(os.path.join('/tmp', request['path'].split('/')[2]), 'w') as f:
+                f.write(request['request_body'])
+                response['status_line'] = 'HTTP/1.1 201 Created'
+                return ''
