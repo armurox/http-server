@@ -1,6 +1,7 @@
 from constants import ALLOWED_METHODS
 from constants import ALLOWED_PATHS
 import os
+import traceback
 from exceptions import HttpNotFoundError
 
 def parse_request(request):
@@ -46,6 +47,10 @@ def construct_response(request):
             response['headers']['Content-Length'] = len(response['response_body'])
         except HttpNotFoundError:
             response = {'status_line': 'HTTP/1.1 404 Not Found', 'headers': {}, 'response_body': ''}
+        except Exception:
+            print(traceback.format_exc())
+            response = {'status_line': 'HTTP/1.1 500 Internal Server Error', 'headers': {}, 'response_body': 'Internal Server Error'}
+            
             
     return '\r\n'.join((response['status_line'], 
                         '\r\n'.join([f'{header}: {response['headers'][header]}' for header in response['headers']]) + '\r\n', 
@@ -59,16 +64,26 @@ def handle_request(connection):
 
 
 def return_or_create_file(request, response):
+    split_path = request['path'].split('/')[2:]
+    file_path = 'static'
+    for item in split_path:
+        file_path = os.path.join(file_path, item)
     if request['method'] == 'GET':
         try:
-            with open(os.path.join('/tmp', request['path'].split('/')[2]), 'r') as f:
+            with open(file_path, 'r') as f:
                 response_body = f.read()
-                response['headers']['Content-Type'] = 'application/octet-stream'
+                try:
+                    response['headers']['Content-Type'] = 'application/octet-stream' if file_path.split('/')[-1].split('.')[-1] != 'html' else 'text/html'
+                except IndexError:
+                    response['headers']['Content-Type'] = 'application/octet-stream'
                 return response_body
         except FileNotFoundError:
             raise HttpNotFoundError
     elif request['method'] == 'POST':
-        with open(os.path.join('/tmp', request['path'].split('/')[2]), 'w') as f:
+        try:
+            with open(file_path, 'w') as f:
                 f.write(request['request_body'])
                 response['status_line'] = 'HTTP/1.1 201 Created'
                 return ''
+        except FileNotFoundError:
+            raise HttpNotFoundError
