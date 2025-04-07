@@ -1,5 +1,6 @@
 from constants import ALLOWED_METHODS
 from constants import ALLOWED_PATHS
+from constants import ALLOWED_ENCODINGS
 import os
 import traceback
 from exceptions import HttpNotFoundError
@@ -50,7 +51,9 @@ def construct_response(request):
         except Exception:
             print(traceback.format_exc())
             response = {'status_line': 'HTTP/1.1 500 Internal Server Error', 'headers': {}, 'response_body': 'Internal Server Error'}
-            
+    
+    if encoding := ALLOWED_ENCODINGS.get(request['headers'].get('accept-encoding')):
+        response['headers']['Content-Encoding'] = encoding
             
     return '\r\n'.join((response['status_line'], 
                         '\r\n'.join([f'{header}: {response['headers'][header]}' for header in response['headers']]) + '\r\n', 
