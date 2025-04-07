@@ -60,7 +60,6 @@ def construct_response(request):
                         response['response_body'])).encode('utf-8')
 
 
-
 def handle_request(connection):
     connection.sendall(construct_response(parse_request(connection.recv(1024))))
     connection.close()
