@@ -14,3 +14,4 @@ Current Paths of the http server:
 3. `GET /user-agent` - Returns the user-agent provided in the request back in the response body.
 4. `GET files/FILEPATH` - Returns the file details of the specified file or `HTTP/1.1 404 Not Found\r\n`
 5. `POST files/FILEPATH` - Creates the file in the static directory.
+6. Given an `Accept-Encoding` header, it supports [gzip](https://en.wikipedia.org/wiki/Gzip) compression.
