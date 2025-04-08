@@ -29,6 +29,7 @@ def parse_request(request):
 
 
 def construct_response(request):
+    encoded = False
     response = {'status_line': '', 'headers': {}, 'response_body': ''}
     path_start = request['path'].split('/')[1]
     if request['method'] not in ALLOWED_METHODS:
@@ -52,12 +53,21 @@ def construct_response(request):
             print(traceback.format_exc())
             response = {'status_line': 'HTTP/1.1 500 Internal Server Error', 'headers': {}, 'response_body': 'Internal Server Error'}
     
-    if encoding := ALLOWED_ENCODINGS.get(request['headers'].get('accept-encoding')):
-        response['headers']['Content-Encoding'] = encoding
+    for encoding in request['headers'].get('accept-encoding', '').split(', '):
+        if encoding in ALLOWED_ENCODINGS:
+            response['headers']['Content-Encoding'] = encoding
+            response['response_body'] = ALLOWED_ENCODINGS.get(encoding)(response['response_body'].encode('utf-8'))
+            response['headers']['Content-Length'] = len(response['response_body'])
+            encoded = True
+
             
-    return '\r\n'.join((response['status_line'], 
-                        '\r\n'.join([f'{header}: {response['headers'][header]}' for header in response['headers']]) + '\r\n', 
-                        response['response_body'])).encode('utf-8')
+    if not encoded:
+        return '\r\n'.join((response['status_line'], 
+                                '\r\n'.join([f'{header}: {response['headers'][header]}' for header in response['headers']]) + '\r\n', 
+                                response['response_body'])).encode('utf-8')
+    else:
+        return '\r\n'.join((response['status_line'], 
+                                '\r\n'.join([f'{header}: {response['headers'][header]}' for header in response['headers']]) + '\r\n\r\n')).encode('utf-8') + response['response_body']
 
 
 def handle_request(connection):
