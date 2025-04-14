@@ -8,7 +8,6 @@ def main():
         conn, addr = server.accept()
         handle_request(conn)
         
-    
-    
+
 if __name__ == "__main__":
     main()
